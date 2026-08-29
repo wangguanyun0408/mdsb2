@@ -45,7 +45,7 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.05);
         }
 
-        /* 針對「另存 PDF / 列印」的極致優化，強制 A4 滿版不跑位 */
+        /* 針對「另存 PDF / 列印」的極致優化，強制 A4 滿版不跑位且消除空白頁 */
         @media print {
             @page {
                 size: A4 portrait;
@@ -58,7 +58,9 @@
             html, body {
                 background: white !important;
                 width: 210mm !important;
-                height: 297mm !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
             }
             header, nav, .no-print, footer, #export, #simulator, #gridContainer, .bg-stone-100 {
                 display: none !important;
@@ -72,9 +74,14 @@
                 width: 210mm !important;
                 gap: 0 !important;
             }
+            /* 強制清除 Tailwind space-y-10 的 margin，這是造成空白頁的主因 */
+            #pptPagesContainer > div {
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+            }
             .ppt-page-card {
                 width: 210mm !important;
-                height: 297mm !important;
+                height: 296.5mm !important; /* 微調高度避免溢出 1px 造成新分頁 */
                 margin: 0 !important;
                 padding: 15mm 20mm !important; /* 設定頁面內部邊距 */
                 box-sizing: border-box !important;
@@ -86,6 +93,11 @@
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: center !important;
+                overflow: hidden !important; /* 確保內容不會撐破卡片 */
+            }
+            /* 最後一頁取消換頁，避免 PDF 最後多出一張空白 */
+            .ppt-page-card:last-child {
+                page-break-after: auto !important;
             }
             /* PDF 圖片高度微調，確保放得下資訊欄位 */
             .ppt-img-container {
@@ -179,7 +191,7 @@
         <div id="pptPagesContainer" class="space-y-10">
             
             <!-- Cover Slide Page -->
-            <div id="coverPage" class="ppt-page-card print-cover-page rounded-2xl p-8 sm:p-12 min-h-[580px] flex flex-col justify-center items-center relative overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 text-white">
+            <div id="coverPage" class="ppt-page-card print-cover-page rounded-2xl p-8 sm:p-12 min-h-[580px] flex flex-col justify-center items-center relative bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 text-white">
                 <div class="space-y-4 max-w-2xl z-10 w-full">
                     <span class="inline-block px-3 py-1 bg-amber-500/20 text-amber-300 text-xs font-mono rounded-full border border-amber-500/30">
                         113學年度 夏季作業專題報告
@@ -691,7 +703,6 @@
             reader.readAsText(file);
         }
 
-        // 使用原生列印取代 html2pdf，確保高畫質圖片不白頻、不跑版
         function triggerPrint() {
             alert('💡 系統已為您鎖定 A4 滿版列印格式！\n\n請在接下來出現的視窗中操作：\n1. 「目的地」選擇為【另存為 PDF】\n2. 「版面配置」設定為【直向】\n3. 邊界設定建議維持【預設】\n\n這樣就不會再出現白畫面或跑版的問題囉！');
             setTimeout(() => {
