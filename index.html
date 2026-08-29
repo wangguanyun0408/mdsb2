@@ -49,7 +49,7 @@
         @media print {
             @page {
                 size: A4 portrait;
-                margin: 0; /* 消除瀏覽器預設白邊 */
+                margin: 0 !important; /* 消除瀏覽器預設白邊 */
             }
             * {
                 -webkit-print-color-adjust: exact !important;
@@ -58,47 +58,53 @@
             html, body {
                 background: white !important;
                 width: 210mm !important;
-                height: 100% !important;
+                height: auto !important;
                 margin: 0 !important;
                 padding: 0 !important;
             }
+            /* 隱藏所有不需要列印的UI介面 */
             header, nav, .no-print, footer, #export, #simulator, #gridContainer, .bg-stone-100 {
                 display: none !important;
             }
             main {
-                max-width: 100% !important;
+                max-width: none !important;
+                width: 210mm !important;
                 padding: 0 !important;
                 margin: 0 !important;
             }
+            
+            /* 徹底解除 Tailwind space-y 帶來的隱形推擠（造成空白頁的元兇） */
             #pptPagesContainer {
+                display: block !important; /* 蓋掉預設的 flex/space */
                 width: 210mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
                 gap: 0 !important;
             }
-            /* 強制清除 Tailwind space-y-10 的 margin，這是造成空白頁的主因 */
-            #pptPagesContainer > div {
-                margin-top: 0 !important;
-                margin-bottom: 0 !important;
-            }
+            
             .ppt-page-card {
                 width: 210mm !important;
-                height: 296.5mm !important; /* 微調高度避免溢出 1px 造成新分頁 */
-                margin: 0 !important;
+                height: 296.5mm !important; /* 留 0.5mm 容錯率避免撐破頁面 */
+                max-height: 296.5mm !important;
+                margin: 0 auto !important; /* 絕對不能有上下 margin */
                 padding: 15mm 20mm !important; /* 設定頁面內部邊距 */
                 box-sizing: border-box !important;
-                box-shadow: none !important;
                 border: none !important;
                 border-radius: 0 !important;
-                page-break-after: always !important;
+                box-shadow: none !important;
                 page-break-inside: avoid !important;
+                page-break-after: always !important; /* 精準強制每張卡片結束後換頁 */
+                overflow: hidden !important; 
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: center !important;
-                overflow: hidden !important; /* 確保內容不會撐破卡片 */
             }
-            /* 最後一頁取消換頁，避免 PDF 最後多出一張空白 */
+
+            /* 最後一頁取消強制換頁，避免 PDF 結尾多一張空白 */
             .ppt-page-card:last-child {
                 page-break-after: auto !important;
             }
+
             /* PDF 圖片高度微調，確保放得下資訊欄位 */
             .ppt-img-container {
                 height: 140mm !important; 
@@ -192,7 +198,7 @@
             
             <!-- Cover Slide Page -->
             <div id="coverPage" class="ppt-page-card print-cover-page rounded-2xl p-8 sm:p-12 min-h-[580px] flex flex-col justify-center items-center relative bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 text-white">
-                <div class="space-y-4 max-w-3xl z-10 w-full">
+                <div class="space-y-4 z-10 w-full text-center sm:text-left">
                     <span class="inline-block px-3 py-1 bg-amber-500/20 text-amber-300 text-xs font-mono rounded-full border border-amber-500/30">
                         113學年度 夏季作業專題報告
                     </span>
@@ -200,7 +206,8 @@
                         住宅空間室內設計<br>
                         <span class="text-amber-400">【無主燈照明】</span>資料庫
                     </h1>
-                    <p class="text-stone-300 text-xs sm:text-sm leading-relaxed whitespace-nowrap">
+                    <!-- 已經加上 whitespace-nowrap 並調整字體大小確保單行呈現 -->
+                    <p class="text-stone-300 text-[11px] sm:text-[13px] leading-relaxed whitespace-nowrap w-full">
                         本作業涵蓋客廳、餐廳、臥室、衛浴、玄關走廊、書房及材質光影等 50 項室內無主燈設計工法與作品蒐集。
                     </p>
                 </div>
@@ -861,7 +868,7 @@
         }
 
         function generateWordText() {
-            const cls = document.getElementById('headerClass').value || '復興室內設計科 室二忠';
+            const cls = document.getElementById('headerClass').value || '室內設計科 室二忠';
             const seat = document.getElementById('headerSeat').value || '[座號]';
             const name = document.getElementById('headerName').value || '[姓名]';
 
