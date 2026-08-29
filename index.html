@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- html2pdf.js CDN (用於解決列印跑版問題) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
         if (window.tailwind) {
             tailwind.config = {
@@ -66,8 +68,16 @@
             break-after: page;
         }
 
-        /* Print Media Query for Direct Word / PDF Output */
+        /* 優化原生列印與 PDF 匯出樣式 */
         @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            @page {
+                size: A4 portrait;
+                margin: 10mm 0;
+            }
             header, nav, .no-print, footer, #export, #simulator, #analyticsSection {
                 display: none !important;
             }
@@ -82,40 +92,25 @@
             }
             .ppt-page-card {
                 box-shadow: none !important;
-                border: 1px solid #ccc !important;
-                margin: 0 0 20px 0 !important;
+                border: none !important;
+                margin: 0 auto !important;
+                padding: 15mm 15mm !important;
                 page-break-after: always !important;
                 break-after: page !important;
-                height: 98vh !important;
+                min-height: 270mm !important; 
+                width: 100% !important;
                 display: flex !important;
                 flex-direction: column !important;
-                justify-content: space-between !important;
+                justify-content: flex-start !important;
             }
             .print-cover-page {
-                height: 98vh !important;
+                height: 280mm !important;
                 page-break-after: always !important;
             }
         }
     </style>
 </head>
 <body class="min-h-screen flex flex-col custom-scrollbar">
-
-    <!-- Chosen Palette: Warm Architectural Neutrals (Background: #FAF8F5, Card: #FFFFFF, Primary: #2A2723, Accent: #D97706) -->
-    <!-- Application Structure Plan:
-        1. Sticky Control Bar: Mode Switcher (PPT Slide Page View, Grid Quick Upload View, Fullscreen Presentation Player), Print/Export Actions, Student Info Input.
-        2. Dynamic Page Renderer: Generates stylized PPT/Word pages (Cover Page + 50 Individual Cards) with direct image upload dropzones.
-        3. LocalStorage / Image Handler: Allows high school students to upload photo files directly per item with local browser cache persistence.
-        4. Interactive Light Canvas Simulator: Educational tool for understanding color temperature & lighting physics.
-        5. Fullscreen Slide Show Player: Key-navigable presentation mode for presenting homework directly on screen.
-        6. Export Tools: Direct PDF/Print CSS layout, JSON backup/restore, formatted text generator for Word pasting.
-    -->
-    <!-- Visualization & Content Choices:
-        - Page Layout -> Styled A4/16:9 Paper Containers mirroring Word/PPT interior design portfolio sheets.
-        - Chart -> Chart.js Canvas for spatial distributions.
-        - Light Preview -> HTML5 Canvas physics render when photos are missing.
-        - Presentation Mode -> Pure Vanilla JS modal with Arrow Left/Right keyboard navigation.
-    -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 
     <!-- Persistent Header & Toolbar -->
     <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-stone-200 shadow-sm no-print">
@@ -130,7 +125,7 @@
 
             <!-- Student Info Fields -->
             <div class="flex items-center space-x-2 text-xs bg-stone-50 p-1.5 rounded-xl border border-stone-200">
-                <input type="text" id="headerClass" value="復興室內設計科 室二忠" placeholder="班級" class="w-32 p-1 bg-white border border-stone-200 rounded text-center font-medium">
+                <input type="text" id="headerClass" value="復興室內設計科 室二忠" placeholder="班級" class="w-32 p-1 bg-white border border-stone-200 rounded text-center font-medium" oninput="updateCoverPageInfo()">
                 <input type="text" id="headerSeat" placeholder="座號 (例:05)" class="w-20 p-1 bg-white border border-stone-200 rounded text-center font-medium" oninput="updateCoverPageInfo()">
                 <input type="text" id="headerName" placeholder="姓名" class="w-24 p-1 bg-white border border-stone-200 rounded text-center font-medium" oninput="updateCoverPageInfo()">
             </div>
@@ -146,8 +141,8 @@
                 <button onclick="openFullscreenPresentation()" class="px-3 py-1.5 rounded-lg bg-stone-800 text-white font-bold hover:bg-black transition flex items-center space-x-1">
                     <span>🖥️</span> <span>全螢幕簡報</span>
                 </button>
-                <button onclick="triggerPrint()" class="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800 font-bold border border-amber-300 hover:bg-amber-200 transition">
-                    🖨️ 列印/轉存 PDF
+                <button id="btnExportPDF" onclick="triggerPrint()" class="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800 font-bold border border-amber-300 hover:bg-amber-200 transition flex items-center space-x-1">
+                    <span>🖨️</span> <span>轉存/下載 PDF</span>
                 </button>
             </div>
         </div>
@@ -178,7 +173,7 @@
     </div>
 
     <!-- Main Workspace -->
-    <main class="flex-grow max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+    <main class="flex-grow max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
 
         <!-- Category Nav Filter Tabs -->
         <div class="no-print bg-white p-3 rounded-xl border border-stone-200 shadow-sm overflow-x-auto custom-scrollbar flex space-x-1.5 text-xs">
@@ -200,33 +195,31 @@
         <div id="pptPagesContainer" class="space-y-10">
             
             <!-- Cover Slide Page -->
-            <div id="coverPage" class="ppt-page-card print-cover-page rounded-2xl p-8 sm:p-12 min-h-[580px] flex flex-col justify-between relative overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 text-white">
-                <div class="space-y-4 max-w-2xl z-10">
-                    <span class="inline-block px-3 py-1 bg-amber-500/20 text-amber-300 text-xs font-mono rounded-full border border-amber-500/30">
+            <div id="coverPage" class="ppt-page-card print-cover-page rounded-2xl p-8 sm:p-12 min-h-[600px] flex flex-col justify-center items-center text-center relative overflow-hidden bg-white">
+                <div class="space-y-6 max-w-3xl z-10 w-full border border-stone-200 p-12 rounded-3xl shadow-sm">
+                    <span class="inline-block px-4 py-1.5 bg-amber-50 text-amber-700 text-sm font-bold rounded-full border border-amber-200">
                         113學年度 夏季作業專題報告
                     </span>
-                    <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
+                    <h1 class="text-4xl sm:text-5xl font-black tracking-tight text-stone-800 leading-tight">
                         住宅空間室內設計<br>
-                        <span class="text-amber-400">【無主燈照明】</span>資料庫
+                        <span class="text-amber-600">【無主燈照明】</span>資料庫
                     </h1>
-                    <p class="text-stone-300 text-xs sm:text-sm leading-relaxed max-w-xl">
+                    <p class="text-stone-500 text-sm leading-relaxed max-w-xl mx-auto">
                         本作業涵蓋客廳、餐廳、臥室、衛浴、玄關走廊、書房及材質光影等 50 項室內無主燈設計工法與作品蒐集。
                     </p>
-                </div>
-
-                <div class="z-10 bg-white/10 backdrop-blur-md p-6 rounded-xl border border-white/15 max-w-lg mt-8">
-                    <div class="grid grid-cols-3 gap-4 text-xs">
+                    
+                    <div class="mt-12 bg-stone-50 p-6 rounded-xl border border-stone-200 grid grid-cols-3 gap-4 text-left mx-auto max-w-lg">
                         <div>
-                            <p class="text-stone-400 mb-0.5">班級</p>
-                            <p id="coverDisplayClass" class="font-bold text-white text-sm">室內設計科 室二忠</p>
+                            <p class="text-stone-400 text-xs mb-1">班級</p>
+                            <p id="coverDisplayClass" class="font-bold text-stone-800 text-base">復興室內設計科 室二忠</p>
                         </div>
                         <div>
-                            <p class="text-stone-400 mb-0.5">座號</p>
-                            <p id="coverDisplaySeat" class="font-bold text-amber-400 text-sm">[未填寫]</p>
+                            <p class="text-stone-400 text-xs mb-1">座號</p>
+                            <p id="coverDisplaySeat" class="font-bold text-stone-800 text-base">[未填寫]</p>
                         </div>
                         <div>
-                            <p class="text-stone-400 mb-0.5">姓名</p>
-                            <p id="coverDisplayName" class="font-bold text-white text-sm">[未填寫]</p>
+                            <p class="text-stone-400 text-xs mb-1">姓名</p>
+                            <p id="coverDisplayName" class="font-bold text-stone-800 text-base">[未填寫]</p>
                         </div>
                     </div>
                 </div>
@@ -255,7 +248,7 @@
                     <span class="px-2.5 py-0.5 bg-amber-100 text-amber-800 text-xs font-bold rounded-full">設計功課學習角落</span>
                     <h2 class="text-lg font-bold text-stone-800 mt-1">無主燈色溫 (Kelvin) 與打光工法 模擬器</h2>
                 </div>
-                <span class="text-xs text-stone-400">可在做作業前先理解 50 項工法的燈光光效差異</span>
+                <span class="text-xs text-stone-400 hidden sm:inline-block">可在做作業前先理解 50 項工法的燈光光效差異</span>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
@@ -307,7 +300,7 @@
 
     </main>
 
-    <!-- FULLSCREEN PRESENTATION MODAL (SLIDE SHOW PLAYER) -->
+    <!-- FULLSCREEN PRESENTATION MODAL -->
     <div id="presentationModal" class="fixed inset-0 z-50 hidden bg-stone-950 text-white flex flex-col justify-between p-6">
         <div class="flex justify-between items-center text-xs text-stone-400 border-b border-stone-800 pb-3">
             <div class="flex items-center space-x-2">
@@ -349,7 +342,7 @@
                     </div>
 
                     <div class="pt-3 border-t border-stone-800 flex justify-between items-center text-xs">
-                        <span id="playerStatus" class="text-stone-500">未上傳實景照片 (顯示學術示意燈效)</span>
+                        <span id="playerStatus" class="text-stone-500">未上傳實景照片</span>
                         <span id="playerStudent" class="text-stone-400">復興室內設計科</span>
                     </div>
                 </div>
@@ -362,10 +355,6 @@
         </div>
     </div>
 
-    <footer class="bg-white border-t border-stone-200 py-4 text-center text-xs text-stone-500 no-print">
-        住宅空間室內設計【無主燈照明】資料庫 — 復興室內設計科 暑假作業專用系統
-    </footer>
-
     <!-- Master Script & Database -->
     <script>
         const database = [
@@ -375,14 +364,12 @@
             { id: 4, section: '壹、客廳照明設計', cat: '客廳', name: '沙發背牆照明', space: '客廳', keywords: ['牆面洗光', '藝術品聚焦', '光暈效果'], tip: '沙發背牆上方的洗牆燈或微型嵌燈打光。' },
             { id: 5, section: '壹、客廳照明設計', cat: '客廳', name: '窗簾盒/窗邊照明', space: '客廳', keywords: ['窗簾盒隱藏燈帶', '垂直光線', '柔化空間邊界'], tip: '窗簾盒內藏燈帶，光線順著窗簾布面流下的效果。' },
             { id: 6, section: '壹、客廳照明設計', cat: '客廳', name: '天花板特殊造型照明', space: '客廳', keywords: ['磁吸軌道燈', '幾何線條切割', '弧形天花退暈'], tip: '天花板有黑色線條(磁吸軌道燈)或弧形間接照明邊緣。' },
-
             { id: 7, section: '貳、餐廳與中島照明', cat: '餐廳', name: '餐桌重點照明 (單盞吊燈)', space: '餐廳', keywords: ['重點聚焦', '視覺重心', '凝聚用餐氛圍'], tip: '餐桌上方一盞有設計感的低垂吊燈，周圍稍暗。' },
             { id: 8, section: '貳、餐廳與中島照明', cat: '餐廳', name: '餐桌重點照明 (多盞/線型燈)', space: '餐廳', keywords: ['線性延伸', '幾何造型', '現代俐落感'], tip: '長餐桌搭配一排小吊燈或一條極簡線型燈。' },
             { id: 9, section: '貳、餐廳與中島照明', cat: '餐廳', name: '餐邊櫃層板照明', space: '餐廳', keywords: ['鋁條燈', '展示照明', '輕盈感', '兼顧機能與裝飾'], tip: '餐邊櫃開放層架底部的隱藏燈條。' },
             { id: 10, section: '貳、餐廳與中島照明', cat: '餐廳', name: '餐邊櫃操作台照明', space: '餐廳', keywords: ['任務照明', '防眩光', '消除工作陰影'], tip: '餐邊櫃中段操作檯面上方的照明，強調實用性。' },
             { id: 11, section: '貳、餐廳與中島照明', cat: '餐廳', name: '中島檯面照明', space: '廚房/中島', keywords: ['備餐照明', '均勻光線', '俐落天花板'], tip: '中島上方使用磁吸軌道燈或吊燈打亮檯面。' },
             { id: 12, section: '貳、餐廳與中島照明', cat: '餐廳', name: '中島底部/踢腳板照明', space: '廚房/中島', keywords: ['懸浮感設計', '間接光暈', '減輕量體壓迫'], tip: '中島吧台下方內縮並加上燈帶，產生懸浮感。' },
-
             { id: 13, section: '參、臥室照明設計', cat: '臥室', name: '主臥整體氛圍 (無主燈)', space: '主臥房', keywords: ['柔和光環境', '無直射光源', '舒壓放鬆'], tip: '天花板無燈，僅靠床頭燈、間接照明營造氛圍的臥室全景。' },
             { id: 14, section: '參、臥室照明設計', cat: '臥室', name: '對稱床頭燈設計', space: '主臥房', keywords: ['對稱美學', '閱讀燈', '安定感'], tip: '床頭兩側對稱的壁燈或小吊燈。' },
             { id: 15, section: '參、臥室照明設計', cat: '臥室', name: '不對稱床頭燈設計', space: '主臥房', keywords: ['不對稱設計', '活潑視覺', '個性化'], tip: '一側是吊燈，另一側是壁燈或桌燈，或一側留白。' },
@@ -391,41 +378,33 @@
             { id: 18, section: '參、臥室照明設計', cat: '臥室', name: '衣櫃內部照明 (玻璃門)', space: '更衣室/臥室', keywords: ['精品展示感', '感應燈條', '找衣便利'], tip: '深色玻璃衣櫃內部發光，展示衣物。' },
             { id: 19, section: '參、臥室照明設計', cat: '臥室', name: '衣櫃外部/走道照明', space: '更衣室/臥室', keywords: ['均勻洗光', '避免陰影', '方便挑選衣物'], tip: '衣櫃前方天花板使用防眩嵌燈照亮櫃門。' },
             { id: 20, section: '參、臥室照明設計', cat: '臥室', name: '化妝台專屬照明', space: '主臥房/更衣室', keywords: ['演色性高', '無陰影面部照明', '機能性'], tip: '化妝鏡自帶背光，或兩側均勻打光的化妝台。' },
-
             { id: 21, section: '肆、衛浴空間照明', cat: '衛浴', name: '洗手台鏡櫃背光', space: '浴室', keywords: ['鏡面背光照明', '防水型燈條', '減少面部陰影'], tip: '洗手台鏡子背後發光，周圍光線柔和。' },
             { id: 22, section: '肆、衛浴空間照明', cat: '衛浴', name: '洗手台重點照明', space: '浴室', keywords: ['輔助照明', '立體感', '裝飾性'], tip: '鏡子前方或兩側有細長的壁燈或吊燈。' },
             { id: 23, section: '肆、衛浴空間照明', cat: '衛浴', name: '淋浴區/浴缸區情境照明', space: '浴室', keywords: ['壁龕燈光', '防水防潮設計', '飯店級沐浴氛圍'], tip: '壁龕內部打光，或天花板邊緣的微弱間接光。' },
             { id: 24, section: '肆、衛浴空間照明', cat: '衛浴', name: '浴室踢腳/地坪引導照明', space: '浴室', keywords: ['懸空浴櫃', '半夜如廁安全', '視覺輕量化'], tip: '浴櫃下方懸空處的微弱光線。' },
-
             { id: 25, section: '伍、玄關與走廊照明', cat: '玄關', name: '玄關鞋櫃懸浮照明', space: '玄關', keywords: ['懸空櫃體間接照明', '感應式踢腳板燈', '視覺引導'], tip: '玄關鞋櫃下方懸空並透出光線。' },
             { id: 26, section: '伍、玄關與走廊照明', cat: '玄關', name: '玄關端景牆打光', space: '玄關', keywords: ['端景聚焦', '重點照明', '迎賓氛圍'], tip: '一進門看到的牆面有藝術品，上方用聚光燈打亮。' },
             { id: 27, section: '伍、玄關與走廊照明', cat: '玄關', name: '走廊天花板洗牆/線性照明', space: '走廊', keywords: ['線性燈帶', '動線引導', '延伸空間景深'], tip: '長走廊天花板有一條細長的燈帶引導動線，或側邊洗牆。' },
             { id: 28, section: '伍、玄關與走廊照明', cat: '玄關', name: '走廊地坪/踢腳板引導燈', space: '走廊', keywords: ['踢腳燈', '夜間安全', '低位照明'], tip: '走廊牆面接近地面處有微弱的引導燈。' },
-
             { id: 29, section: '陸、書房與多功能室', cat: '書房', name: '書房整體照明', space: '書房', keywords: ['寧靜氛圍', '防眩光設計', '專注力'], tip: '無主燈書房，天花板乾淨，光線集中在工作區。' },
             { id: 30, section: '陸、書房與多功能室', cat: '書房', name: '書桌檯面任務照明', space: '書房', keywords: ['充足照度', '無陰影工作區', '視力保護'], tip: '書桌正上方天花板的線性吊燈或隱藏式燈管。' },
             { id: 31, section: '陸、書房與多功能室', cat: '書房', name: '書櫃/展示架照明', space: '書房', keywords: ['藏書展示', '層板燈條', '立體感與層次'], tip: '開放式書架層板內部邊緣發光。' },
             { id: 32, section: '陸、書房與多功能室', cat: '書房', name: '多功能室/和室地坪間接照明', space: '多功能室/和室', keywords: ['架高地坪邊緣打光', '輕盈漂浮感', '空間界定'], tip: '架高木地板邊緣下方透出的光線。' },
-
             { id: 33, section: '柒、材質與光影的對話', cat: '材質', name: '光與木格柵/木百葉', space: '任意空間', keywords: ['木格柵洗牆', '光影韻律', '溫潤質感'], tip: '光線打在木格柵牆面上，產生細緻的光影條紋。' },
             { id: 34, section: '柒、材質與光影的對話', cat: '材質', name: '光與粗獷材質 (清水模/石材)', space: '任意空間', keywords: ['特殊塗料/石材', '擦牆光', '凸顯肌理與觸感'], tip: '光線擦過表面粗糙的牆面，凸顯立體紋理。' },
             { id: 35, section: '柒、材質與光影的對話', cat: '材質', name: '光與大理石/鏡面', space: '任意空間', keywords: ['反射材質', '避免眩光', '高雅奢華感'], tip: '間接光源打在光澤面上，不見燈珠但有晶瑩感。' },
             { id: 36, section: '柒、材質與光影的對話', cat: '材質', name: '光與玻璃磚/長虹玻璃', space: '任意空間', keywords: ['透光隔間', '朦朧光影', '空間層次與隱私'], tip: '光源藏在長虹玻璃屏風後方，透出朦朧光感。' },
-
             { id: 37, section: '捌、特殊無主燈手法', cat: '特殊', name: '磁吸軌道燈 (L型轉折)', space: '任意空間', keywords: ['磁吸軌道', '線條延伸', '現代前衛感'], tip: '天花板的黑色軌道燈延伸轉折到牆面上。' },
             { id: 38, section: '捌、特殊無主燈手法', cat: '特殊', name: '極窄邊框/無邊框嵌燈', space: '任意空間', keywords: ['隱形嵌燈', '深防眩', '天花板極致乾淨'], tip: '天花板上的燈孔極小，幾乎看不到燈具邊緣。' },
             { id: 39, section: '捌、特殊無主燈手法', cat: '特殊', name: '微型/迷你洗牆燈', space: '任意空間', keywords: ['迷你燈具', '精準控光', '精緻洗牆效果'], tip: '一排非常小巧的燈孔，卻能打出漂亮的洗牆光弧。' },
             { id: 40, section: '捌、特殊無主燈手法', cat: '特殊', name: '牆面/天花內嵌線性鋁條燈', space: '任意空間', keywords: ['空間切割', '幾何光線', '未來科技感'], tip: '光線作為空間的幾何分割線，隨意穿梭在牆面與天花。' },
-
             { id: 41, section: '玖、局部角落與端景', cat: '角落', name: '植栽打光', space: '角落', keywords: ['綠意聚焦', '光影投射', '生命力展現'], tip: '從地面往上打亮室內大型植栽，或從上方聚光。' },
             { id: 42, section: '玖、局部角落與端景', cat: '角落', name: '樓梯踏階照明', space: '樓梯間', keywords: ['踏步燈', '線性引導', '層次分明', '安全考量'], tip: '樓梯每一階下方隱藏燈條，或牆側有引導燈。' },
             { id: 43, section: '玖、局部角落與端景', cat: '角落', name: '扶手隱藏照明', space: '樓梯間', keywords: ['扶手燈帶', '流線感', '間接引導光'], tip: '樓梯扶手下方凹槽內藏燈帶。' },
             { id: 44, section: '玖、局部角落與端景', cat: '角落', name: '壁龕 (Niche) 照明', space: '任意空間', keywords: ['壁龕展示', '內凹空間打光', '精緻細節'], tip: '牆面內凹的展示空間，內部上方或側邊打光。' },
-
             { id: 45, section: '拾、軟裝與氛圍燈具', cat: '軟裝', name: '立燈 (落地燈) 應用', space: '客廳/臥室', keywords: ['軟裝搭配', '角落氛圍', '移動性光源'], tip: '沙發旁或角落放置一盞造型特殊的落地燈。' },
             { id: 46, section: '拾、軟裝與氛圍燈具', cat: '軟裝', name: '桌燈 (檯燈) 應用', space: '客廳/書房/臥室', keywords: ['局部點綴', '閱讀輔助', '提升空間品味'], tip: '邊几或書桌上具有設計感的桌燈。' },
             { id: 47, section: '拾、軟裝與氛圍燈具', cat: '軟裝', name: '造型壁燈應用', space: '走廊/端景牆', keywords: ['牆面裝飾', '光影藝術', '豐富立面層次'], tip: '牆面上款不僅發光，本身就像藝術品的壁燈。' },
-
             { id: 48, section: '拾壹、綜合應用與風格', cat: '風格', name: '侘寂風 (Wabi-Sabi) 無主燈', space: '整體空間', keywords: ['侘寂風', '低照度', '重視陰影', '質樸靜謐'], tip: '微水泥牆面，極少量的光源，注重陰影之美。' },
             { id: 49, section: '拾壹、綜合應用與風格', cat: '風格', name: '極簡現代風 (Minimalist) 無主燈', space: '整體空間', keywords: ['極簡主義', '線性光', '理性冷靜', '視覺收斂'], tip: '極度乾淨俐落的線條，冷色調或中性色調的光環境。' },
             { id: 50, section: '拾壹、綜合應用與風格', cat: '風格', name: '日式/木質調無主燈', space: '整體空間', keywords: ['日式/北歐風', '暖色溫', '溫潤包覆感', '柔和間接光'], tip: '大量木作空間，搭配暖黃色(3000K)的隱藏燈帶，溫馨感十足。' }
@@ -436,11 +415,66 @@
         let currentFilter = 'all';
         let currentView = 'ppt';
         let activePlayerIndex = 0;
-
         let simColorTemp = 3000;
+        
+        // IndexedDB 設定 (突破 5MB 限制)
+        const dbName = 'LightingHW_DB';
+        const storeName = 'hw_store';
+        let db;
 
-        document.addEventListener('DOMContentLoaded', () => {
-            loadSavedData();
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(dbName, 1);
+                request.onupgradeneeded = (e) => {
+                    db = e.target.result;
+                    if (!db.objectStoreNames.contains(storeName)) {
+                        db.createObjectStore(storeName, { keyPath: 'id' });
+                    }
+                };
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    resolve();
+                };
+                request.onerror = (e) => reject(e);
+            });
+        }
+
+        async function saveDataLocally() {
+            if(!db) return;
+            const payload = {
+                id: 'mainData',
+                seat: document.getElementById('headerSeat').value,
+                name: document.getElementById('headerName').value,
+                cls: document.getElementById('headerClass').value,
+                photos: userPhotos
+            };
+            const tx = db.transaction(storeName, 'readwrite');
+            tx.objectStore(storeName).put(payload);
+        }
+
+        async function loadSavedData() {
+            return new Promise((resolve) => {
+                if(!db) { resolve(); return; }
+                const tx = db.transaction(storeName, 'readonly');
+                const req = tx.objectStore(storeName).get('mainData');
+                req.onsuccess = () => {
+                    if (req.result) {
+                        const payload = req.result;
+                        if (payload.seat) document.getElementById('headerSeat').value = payload.seat;
+                        if (payload.name) document.getElementById('headerName').value = payload.name;
+                        if (payload.cls) document.getElementById('headerClass').value = payload.cls;
+                        if (payload.photos) userPhotos = payload.photos;
+                        updateCoverPageInfo();
+                    }
+                    resolve();
+                };
+                req.onerror = () => resolve(); 
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initDB();
+            await loadSavedData();
             renderPptPages();
             renderGridCards();
             initSimCanvas();
@@ -521,18 +555,17 @@
                         </span>
                     </div>
 
-                    <!-- Photo Container / Uploader Zone -->
-                    <div class="relative w-full h-64 sm:h-80 bg-stone-900 rounded-xl overflow-hidden border border-stone-200 flex flex-col items-center justify-center group">
+                    <!-- 統一相片比例與 UI (根據 image_3f1489.jpg) -->
+                    <div class="relative w-full h-[320px] sm:h-[400px] bg-gradient-to-b from-[#6b3e10] to-[#1a1815] rounded-xl overflow-hidden border border-stone-200 flex flex-col items-center justify-center group shadow-inner">
                         ${photoUrl ? `
                             <img src="${photoUrl}" class="w-full h-full object-cover">
-                            <button onclick="removePhoto(${item.id})" class="no-print absolute top-3 right-3 bg-red-600/80 hover:bg-red-600 text-white text-xs px-2.5 py-1 rounded-lg backdrop-blur shadow">
+                            <button onclick="removePhoto(${item.id})" class="no-print absolute top-4 right-4 bg-red-600/90 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur shadow-md transition">
                                 🗑️ 移除照片
                             </button>
                         ` : `
-                            <canvas id="placeholderCanvas-${item.id}" class="absolute inset-0 w-full h-full"></canvas>
-                            <div class="no-print z-10 text-center p-4 bg-stone-900/70 backdrop-blur rounded-xl border border-white/10 space-y-2">
-                                <p class="text-xs text-stone-300">📷 尚未點擊上傳實景相片</p>
-                                <label class="inline-block px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-lg cursor-pointer shadow transition">
+                            <div class="no-print z-10 flex flex-col items-center justify-center p-6 bg-stone-950/60 backdrop-blur-md rounded-2xl border border-white/10 shadow-xl space-y-4">
+                                <p class="text-sm text-stone-200 font-medium">📷 尚未點擊上傳實景照片</p>
+                                <label class="inline-block px-6 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm rounded-xl cursor-pointer shadow-md transition transform hover:scale-105">
                                     選擇照片上傳
                                     <input type="file" accept="image/*" onchange="handleImageUpload(event, ${item.id})" class="hidden">
                                 </label>
@@ -565,10 +598,6 @@
                 `;
 
                 container.appendChild(card);
-
-                if (!photoUrl) {
-                    setTimeout(() => drawPlaceholderLight(item.id), 50);
-                }
             });
 
             updateProgressUI();
@@ -632,55 +661,10 @@
             renderGridCards();
         }
 
-        function drawPlaceholderLight(id) {
-            const canvas = document.getElementById(`placeholderCanvas-${id}`);
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            canvas.width = canvas.parentElement.clientWidth || 400;
-            canvas.height = canvas.parentElement.clientHeight || 250;
-
-            const w = canvas.width;
-            const h = canvas.height;
-
-            ctx.fillStyle = '#18181b';
-            ctx.fillRect(0, 0, w, h);
-
-            const grad = ctx.createLinearGradient(w / 2, 0, w / 2, h);
-            grad.addColorStop(0, 'rgba(217, 119, 6, 0.6)');
-            grad.addColorStop(0.5, 'rgba(217, 119, 6, 0.15)');
-            grad.addColorStop(1, 'rgba(0,0,0,0)');
-
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, w, h);
-        }
-
         function updateProgressUI() {
             const count = Object.keys(userPhotos).length;
             const pct = Math.round((count / 50) * 100);
             document.getElementById('progressPill').innerText = `已上傳照片 ${count} / 50 (${pct}%)`;
-        }
-
-        function saveDataLocally() {
-            const payload = {
-                seat: document.getElementById('headerSeat').value,
-                name: document.getElementById('headerName').value,
-                cls: document.getElementById('headerClass').value,
-                photos: userPhotos
-            };
-            localStorage.setItem('lighting_hw_data', JSON.stringify(payload));
-        }
-
-        function loadSavedData() {
-            const raw = localStorage.getItem('lighting_hw_data');
-            if (!raw) return;
-            try {
-                const payload = JSON.parse(raw);
-                if (payload.seat) document.getElementById('headerSeat').value = payload.seat;
-                if (payload.name) document.getElementById('headerName').value = payload.name;
-                if (payload.cls) document.getElementById('headerClass').value = payload.cls;
-                if (payload.photos) userPhotos = payload.photos;
-                updateCoverPageInfo();
-            } catch (e) {}
         }
 
         function exportProgress() {
@@ -719,6 +703,45 @@
                 }
             };
             reader.readAsText(file);
+        }
+
+        // 解決列印跑版的 PDF 匯出方案
+        function triggerPrint() {
+            if (typeof html2pdf === 'undefined') {
+                // 退回原生方案（已經過 CSS 優化）
+                window.print();
+                return;
+            }
+            
+            const btn = document.getElementById('btnExportPDF');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span>⏳</span> <span>PDF 生成中...</span>';
+            btn.disabled = true;
+
+            const element = document.getElementById('pptPagesContainer');
+            
+            const opt = {
+                margin:       10, 
+                filename:     `無主燈設計作業_${document.getElementById('headerName').value || '未填名'}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { 
+                    scale: 2,
+                    useCORS: true,
+                    ignoreElements: (node) => node.classList && node.classList.contains('no-print')
+                },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }).catch(err => {
+                console.error(err);
+                alert('自動匯出 PDF 失敗，系統將為您開啟原生預設列印。');
+                window.print();
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
         }
 
         // Fullscreen Slide Show Player logic
@@ -869,10 +892,6 @@
             }
 
             document.getElementById('simDesc').innerText = `${simColorTemp}K 光效模擬`;
-        }
-
-        function triggerPrint() {
-            window.print();
         }
 
         function generateWordText() {
