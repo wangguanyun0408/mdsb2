@@ -6,10 +6,6 @@
     <title>住宅空間【無主燈照明】50項作業簡報與學習單系統</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- html2pdf.js CDN (用於解決列印跑版問題) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
         if (window.tailwind) {
             tailwind.config = {
@@ -38,74 +34,62 @@
             margin: 0;
             padding: 0;
         }
-        .chart-container {
-            position: relative;
-            width: 100%;
-            max-width: 550px;
-            margin-left: auto;
-            margin-right: auto;
-            height: 260px;
-            max-height: 300px;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #F3EFE6;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #D1C7BD;
-            border-radius: 3px;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #F3EFE6; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #D1C7BD; border-radius: 3px; }
 
-        /* Page / PPT Slide Card Style */
+        /* 一般網頁瀏覽的卡片樣式 */
         .ppt-page-card {
             background: white;
             border: 1px solid #E8E3D9;
             box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-            page-break-after: always;
-            break-after: page;
         }
 
-        /* 優化原生列印作為備用方案 */
+        /* 針對「另存 PDF / 列印」的極致優化，強制 A4 滿版不跑位 */
         @media print {
-            * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
             @page {
                 size: A4 portrait;
-                margin: 10mm 0;
+                margin: 0; /* 消除瀏覽器預設白邊 */
             }
-            header, nav, .no-print, footer, #export, #simulator, #analyticsSection {
-                display: none !important;
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important; /* 強制列印所有背景色與漸層 */
             }
-            body {
+            html, body {
                 background: white !important;
-                padding: 0 !important;
+                width: 210mm !important;
+                height: 297mm !important;
+            }
+            header, nav, .no-print, footer, #export, #simulator, #gridContainer, .bg-stone-100 {
+                display: none !important;
             }
             main {
                 max-width: 100% !important;
                 padding: 0 !important;
                 margin: 0 !important;
             }
+            #pptPagesContainer {
+                width: 210mm !important;
+                gap: 0 !important;
+            }
             .ppt-page-card {
+                width: 210mm !important;
+                height: 297mm !important;
+                margin: 0 !important;
+                padding: 15mm 20mm !important; /* 設定頁面內部邊距 */
+                box-sizing: border-box !important;
                 box-shadow: none !important;
                 border: none !important;
-                margin: 0 auto !important;
-                padding: 15mm 15mm !important;
+                border-radius: 0 !important;
                 page-break-after: always !important;
-                break-after: page !important;
-                min-height: 270mm !important; 
-                width: 100% !important;
+                page-break-inside: avoid !important;
                 display: flex !important;
                 flex-direction: column !important;
-                justify-content: flex-start !important;
+                justify-content: center !important;
             }
-            .print-cover-page {
-                height: 280mm !important;
-                page-break-after: always !important;
+            /* PDF 圖片高度微調，確保放得下資訊欄位 */
+            .ppt-img-container {
+                height: 140mm !important; 
             }
         }
     </style>
@@ -194,9 +178,9 @@
         <!-- VIEW MODE 1: PPT/WORD SLIDE PAGES CONTAINER -->
         <div id="pptPagesContainer" class="space-y-10">
             
-            <!-- Cover Slide Page (已還原為深色質感排版) -->
-            <div id="coverPage" class="ppt-page-card print-cover-page rounded-2xl p-8 sm:p-12 min-h-[580px] flex flex-col justify-between relative overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 text-white">
-                <div class="space-y-4 max-w-2xl z-10">
+            <!-- Cover Slide Page -->
+            <div id="coverPage" class="ppt-page-card print-cover-page rounded-2xl p-8 sm:p-12 min-h-[580px] flex flex-col justify-center items-center relative overflow-hidden bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 text-white">
+                <div class="space-y-4 max-w-2xl z-10 w-full">
                     <span class="inline-block px-3 py-1 bg-amber-500/20 text-amber-300 text-xs font-mono rounded-full border border-amber-500/30">
                         113學年度 夏季作業專題報告
                     </span>
@@ -209,7 +193,7 @@
                     </p>
                 </div>
 
-                <div class="z-10 bg-white/10 backdrop-blur-md p-6 rounded-xl border border-white/15 max-w-lg mt-8">
+                <div class="z-10 bg-white/10 backdrop-blur-md p-6 rounded-xl border border-white/15 max-w-lg mt-8 w-full">
                     <div class="grid grid-cols-3 gap-4 text-xs">
                         <div>
                             <p class="text-stone-400 mb-0.5">班級</p>
@@ -557,10 +541,10 @@
                         </span>
                     </div>
 
-                    <!-- 統一相片比例與 UI (根據 image_3f1489.jpg) -->
-                    <div class="relative w-full h-[320px] sm:h-[400px] bg-gradient-to-b from-[#6b3e10] to-[#1a1815] rounded-xl overflow-hidden border border-stone-200 flex flex-col items-center justify-center group shadow-inner">
+                    <!-- 使用 object-contain 保持圖片完整不被裁切，並加上深色背景填滿空隙 -->
+                    <div class="ppt-img-container relative w-full h-[320px] sm:h-[400px] bg-gradient-to-b from-[#4a2e10] to-[#121210] rounded-xl overflow-hidden border border-stone-200 flex flex-col items-center justify-center group shadow-inner">
                         ${photoUrl ? `
-                            <img src="${photoUrl}" class="w-full h-full object-cover">
+                            <img src="${photoUrl}" class="w-full h-full object-contain">
                             <button onclick="removePhoto(${item.id})" class="no-print absolute top-4 right-4 bg-red-600/90 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur shadow-md transition">
                                 🗑️ 移除照片
                             </button>
@@ -628,7 +612,7 @@
                         </div>
                         <h4 class="font-bold text-stone-800 text-xs">${item.name}</h4>
                         <div class="h-32 bg-stone-900 rounded-lg overflow-hidden relative flex items-center justify-center">
-                            ${photoUrl ? `<img src="${photoUrl}" class="w-full h-full object-cover">` : `<span class="text-xs text-stone-400">尚未上傳相片</span>`}
+                            ${photoUrl ? `<img src="${photoUrl}" class="w-full h-full object-contain">` : `<span class="text-xs text-stone-400">尚未上傳相片</span>`}
                         </div>
                     </div>
                     <div>
@@ -707,47 +691,12 @@
             reader.readAsText(file);
         }
 
-        // 解決列印跑版的 PDF 匯出方案 (修復白畫面問題)
+        // 使用原生列印取代 html2pdf，確保高畫質圖片不白頻、不跑版
         function triggerPrint() {
-            if (typeof html2pdf === 'undefined') {
+            alert('💡 系統已為您鎖定 A4 滿版列印格式！\n\n請在接下來出現的視窗中操作：\n1. 「目的地」選擇為【另存為 PDF】\n2. 「版面配置」設定為【直向】\n3. 邊界設定建議維持【預設】\n\n這樣就不會再出現白畫面或跑版的問題囉！');
+            setTimeout(() => {
                 window.print();
-                return;
-            }
-            
-            // 強制畫面捲動回最上方，避免 html2canvas 截圖位移造成白畫面
-            window.scrollTo(0, 0);
-
-            const btn = document.getElementById('btnExportPDF');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<span>⏳</span> <span>PDF 生成中...</span>';
-            btn.disabled = true;
-
-            const element = document.getElementById('pptPagesContainer');
-            
-            const opt = {
-                margin:       [10, 0, 10, 0],
-                filename:     `無主燈設計作業_${document.getElementById('headerName').value || '未填名'}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { 
-                    scale: 2,
-                    useCORS: true,
-                    scrollY: 0, // 強制指定 Y 軸起點
-                    ignoreElements: (node) => node.classList && node.classList.contains('no-print')
-                },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak:    { mode: ['css', 'legacy'] } // 讓分頁強制生效
-            };
-
-            html2pdf().set(opt).from(element).save().then(() => {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }).catch(err => {
-                console.error(err);
-                alert('自動匯出 PDF 失敗，系統將為您開啟原生預設列印。');
-                window.print();
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            });
+            }, 800);
         }
 
         // Fullscreen Slide Show Player logic
