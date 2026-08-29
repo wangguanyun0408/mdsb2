@@ -49,20 +49,19 @@
         @media print {
             @page {
                 size: A4 portrait;
-                margin: 0 !important; /* 消除瀏覽器預設白邊 */
+                margin: 0 !important; /* 絕對強制消除瀏覽器白邊 */
             }
             * {
                 -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important; /* 強制列印所有背景色與漸層 */
+                print-color-adjust: exact !important;
             }
             html, body {
                 background: white !important;
                 width: 210mm !important;
-                height: auto !important;
+                height: 100% !important;
                 margin: 0 !important;
                 padding: 0 !important;
             }
-            /* 隱藏所有不需要列印的UI介面 */
             header, nav, .no-print, footer, #export, #simulator, #gridContainer, .bg-stone-100 {
                 display: none !important;
             }
@@ -73,27 +72,30 @@
                 margin: 0 !important;
             }
             
-            /* 徹底解除 Tailwind space-y 帶來的隱形推擠（造成空白頁的元兇） */
             #pptPagesContainer {
-                display: block !important; /* 蓋掉預設的 flex/space */
+                display: block !important;
                 width: 210mm !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 gap: 0 !important;
             }
             
+            #pptPagesContainer > div {
+                margin: 0 !important; /* 確保所有子元素沒有推擠 */
+            }
+
             .ppt-page-card {
                 width: 210mm !important;
-                height: 296.5mm !important; /* 留 0.5mm 容錯率避免撐破頁面 */
-                max-height: 296.5mm !important;
-                margin: 0 auto !important; /* 絕對不能有上下 margin */
-                padding: 15mm 20mm !important; /* 設定頁面內部邊距 */
+                height: 297mm !important; /* 絕對鎖定 A4 高度 */
+                max-height: 297mm !important;
+                margin: 0 !important;
+                padding: 15mm 20mm !important; 
                 box-sizing: border-box !important;
                 border: none !important;
                 border-radius: 0 !important;
                 box-shadow: none !important;
                 page-break-inside: avoid !important;
-                page-break-after: always !important; /* 精準強制每張卡片結束後換頁 */
+                page-break-after: always !important;
                 overflow: hidden !important; 
                 display: flex !important;
                 flex-direction: column !important;
@@ -206,7 +208,6 @@
                         住宅空間室內設計<br>
                         <span class="text-amber-400">【無主燈照明】</span>資料庫
                     </h1>
-                    <!-- 已經加上 whitespace-nowrap 並調整字體大小確保單行呈現 -->
                     <p class="text-stone-300 text-[11px] sm:text-[13px] leading-relaxed whitespace-nowrap w-full">
                         本作業涵蓋客廳、餐廳、臥室、衛浴、玄關走廊、書房及材質光影等 50 項室內無主燈設計工法與作品蒐集。
                     </p>
@@ -711,7 +712,7 @@
         }
 
         function triggerPrint() {
-            alert('💡 系統已為您鎖定 A4 滿版列印格式！\n\n請在接下來出現的視窗中操作：\n1. 「目的地」選擇為【另存為 PDF】\n2. 「版面配置」設定為【直向】\n3. 邊界設定建議維持【預設】\n\n這樣就不會再出現白畫面或跑版的問題囉！');
+            alert('💡 系統已為您鎖定 A4 滿版列印格式！\n\n請在列印視窗中確認以下設定：\n1. 「目的地」選【另存為 PDF】\n2. 「邊界」務必改為【無】 (非常重要，否則會多出空白頁！)\n3. 勾選【背景圖形】');
             setTimeout(() => {
                 window.print();
             }, 800);
@@ -868,7 +869,7 @@
         }
 
         function generateWordText() {
-            const cls = document.getElementById('headerClass').value || '室內設計科 室二忠';
+            const cls = document.getElementById('headerClass').value || '復興室內設計科 室二忠';
             const seat = document.getElementById('headerSeat').value || '[座號]';
             const name = document.getElementById('headerName').value || '[姓名]';
 
