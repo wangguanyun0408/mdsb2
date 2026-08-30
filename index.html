@@ -53,7 +53,7 @@
             }
             * {
                 -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
+                print-color-adjust: exact !important; /* 強制列印所有背景色與漸層 */
             }
             html, body {
                 background: white !important;
@@ -130,7 +130,7 @@
             <!-- Student Info Fields -->
             <div class="flex items-center space-x-2 text-xs bg-stone-50 p-1.5 rounded-xl border border-stone-200">
                 <input type="text" id="headerClass" value="復興室內設計科 室二忠" placeholder="班級" class="w-32 p-1 bg-white border border-stone-200 rounded text-center font-medium" oninput="updateCoverPageInfo()">
-                <input type="text" id="headerSeat" placeholder="座號 (例:05)" class="w-20 p-1 bg-white border border-stone-200 rounded text-center font-medium" oninput="updateCoverPageInfo()">
+                <input type="text" id="headerSeat" placeholder="學號" class="w-24 p-1 bg-white border border-stone-200 rounded text-center font-medium" oninput="updateCoverPageInfo()">
                 <input type="text" id="headerName" placeholder="姓名" class="w-24 p-1 bg-white border border-stone-200 rounded text-center font-medium" oninput="updateCoverPageInfo()">
             </div>
 
@@ -201,16 +201,9 @@
             <!-- Cover Slide Page -->
             <div id="coverPage" class="ppt-page-card print-cover-page rounded-2xl p-8 sm:p-12 min-h-[580px] flex flex-col justify-center items-center relative bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 text-white">
                 <div class="space-y-4 z-10 w-full text-center sm:text-left">
-                    <span class="inline-block px-3 py-1 bg-amber-500/20 text-amber-300 text-xs font-mono rounded-full border border-amber-500/30">
-                        113學年度 夏季作業專題報告
-                    </span>
-                    <h1 class="text-3xl sm:text-5xl font-black tracking-tight text-white leading-tight">
-                        住宅空間室內設計<br>
-                        <span class="text-amber-400">【無主燈照明】</span>資料庫
+                    <h1 class="text-5xl sm:text-7xl font-black tracking-tight text-white leading-tight">
+                        115學年度
                     </h1>
-                    <p class="text-stone-300 text-[11px] sm:text-[13px] leading-relaxed whitespace-nowrap w-full">
-                        本作業涵蓋客廳、餐廳、臥室、衛浴、玄關走廊、書房及材質光影等 50 項室內無主燈設計工法與作品蒐集。
-                    </p>
                 </div>
 
                 <div class="z-10 bg-white/10 backdrop-blur-md p-6 rounded-xl border border-white/15 max-w-lg mt-8 w-full">
@@ -220,7 +213,7 @@
                             <p id="coverDisplayClass" class="font-bold text-white text-sm">室內設計科 室二忠</p>
                         </div>
                         <div>
-                            <p class="text-stone-400 mb-0.5">座號</p>
+                            <p class="text-stone-400 mb-0.5">學號</p>
                             <p id="coverDisplaySeat" class="font-bold text-amber-400 text-sm">[未填寫]</p>
                         </div>
                         <div>
@@ -488,8 +481,8 @@
         });
 
         function updateCoverPageInfo() {
-            const seat = document.getElementById('headerSeat').value || '[座號]';
-            const name = document.getElementById('headerName').value || '[姓名]';
+            const seat = document.getElementById('headerSeat').value || '[未填寫]';
+            const name = document.getElementById('headerName').value || '[未填寫]';
             const cls = document.getElementById('headerClass').value || '復興室內設計科 室二忠';
 
             document.getElementById('coverDisplaySeat').innerText = seat;
